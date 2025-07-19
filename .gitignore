@@ -204,3 +204,5 @@ Thumbs.db
 # *.webm
 # *.mkv
 # *.avi 
+
+.cursor/
