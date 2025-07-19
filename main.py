@@ -1,20 +1,29 @@
-import sys
 import os
-import json
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                            QHBoxLayout, QLineEdit, QPushButton, QLabel,
-                            QFileDialog, QMessageBox)
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon, QDragEnterEvent, QDropEvent
-import yt_dlp
+import sys
 
-from utils import load_settings, save_settings
-from styles import APP_STYLE
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QIcon
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from downloader import DownloadDialog
-from video_info import VideoInfoDialog
 from loading import LoadingDialog, VideoInfoWorker
+from styles import APP_STYLE
+from utils import load_settings, save_settings
+from video_info import VideoInfoDialog
 
 ICON_PATH = "app.ico"
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -24,7 +33,7 @@ class MainWindow(QMainWindow):
         if os.path.exists(ICON_PATH):
             self.setWindowIcon(QIcon(ICON_PATH))
         self.settings = load_settings()
-        size = self.settings.get('main_window_size')
+        size = self.settings.get("main_window_size")
         if size:
             self.resize(size[0], size[1])
         self.setAcceptDrops(True)
@@ -62,17 +71,21 @@ class MainWindow(QMainWindow):
         self.status_label.setObjectName("StatusLabel")
         layout.addWidget(self.status_label)
 
-        self.save_path = self.settings.get('save_path', os.path.expanduser("~/Downloads"))
+        self.save_path = self.settings.get(
+            "save_path", os.path.expanduser("~/Downloads")
+        )
         self.selected_format = None
         self.worker = None
         self.setStyleSheet(APP_STYLE)
         self.update_folder_label()
 
     def select_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку для сохранения", self.save_path)
+        folder = QFileDialog.getExistingDirectory(
+            self, "Выберите папку для сохранения", self.save_path
+        )
         if folder:
             self.save_path = folder
-            self.settings['save_path'] = folder
+            self.settings["save_path"] = folder
             save_settings(self.settings)
             self.update_folder_label()
 
@@ -103,7 +116,9 @@ class MainWindow(QMainWindow):
         self.url_input.setEnabled(True)
         self.info_button.setText("Найти")
         if error:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось получить информацию о видео:\n{error}")
+            QMessageBox.critical(
+                self, "Ошибка", f"Не удалось получить информацию о видео:\n{error}"
+            )
             return
         dialog = VideoInfoDialog(self)
         dialog.load_video_info_from_info(info)
@@ -115,7 +130,9 @@ class MainWindow(QMainWindow):
         self.open_download_dialog()
 
     def open_download_dialog(self):
-        dialog = DownloadDialog(self, self.url_input.text().strip(), self.save_path, self.selected_format)
+        dialog = DownloadDialog(
+            self, self.url_input.text().strip(), self.save_path, self.selected_format
+        )
         dialog.exec()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
@@ -133,12 +150,27 @@ class MainWindow(QMainWindow):
             self.url_input.setText(event.mimeData().text())
 
     def closeEvent(self, event):
-        self.settings['main_window_size'] = [self.size().width(), self.size().height()]
+        # Завершаем все активные потоки
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            if hasattr(self.worker, "cancel"):
+                self.worker.cancel()
+            self.worker.quit()
+            self.worker.wait(3000)  # Ждем до 3 секунд
+            if self.worker.isRunning():
+                self.worker.terminate()
+                self.worker.wait(1000)
+
+        # Закрываем диалоги, если они открыты
+        if hasattr(self, "loading_dialog") and self.loading_dialog:
+            self.loading_dialog.close()
+
+        self.settings["main_window_size"] = [self.size().width(), self.size().height()]
         save_settings(self.settings)
         super().closeEvent(event)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec()) 
+    sys.exit(app.exec())

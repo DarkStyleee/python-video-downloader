@@ -69,4 +69,4 @@ QTextEdit {
     font-size: 15px;
     color: #e5e7eb;
 }
-""" 
+"""
